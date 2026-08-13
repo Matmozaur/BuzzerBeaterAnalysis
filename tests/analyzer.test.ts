@@ -1,0 +1,74 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { describe, expect, it } from 'vitest'
+import { analyzeMatchHtml, parseMatchHtml } from '../src/lib/analyzer'
+
+const fixture = readFileSync(join(process.cwd(), 'tests/fixtures/sample-pbp.html'), 'utf8')
+
+describe('parseMatchHtml', () => {
+  it('parses the real observed ASP.NET containers and table rows', () => {
+    const parsed = parseMatchHtml(fixture)
+
+    expect(parsed.matchId).toBe('140140858')
+    expect(parsed.teams.away.name).toBe('Sample Away')
+    expect(parsed.teams.home.name).toBe('Sample Home')
+    expect(parsed.teams.away.players).toHaveLength(6)
+    expect(parsed.teams.home.players).toHaveLength(6)
+    expect(parsed.plays[0]?.eventType).toBe('JUMP_BALL')
+    expect(parsed.plays[3]?.eventIdText).toContain('1001 gets off a great pass to 1002')
+  })
+})
+
+describe('analyzeMatchHtml', () => {
+  it('calculates core box-score and advanced metrics deterministically', () => {
+    const analysis = analyzeMatchHtml(fixture)
+    const away = analysis.teams.find((team) => team.side === 'away')
+    const home = analysis.teams.find((team) => team.side === 'home')
+
+    expect(analysis.summary.awayTeam.points).toBe(4)
+    expect(analysis.summary.homeTeam.points).toBe(7)
+
+    expect(away?.stats).toMatchObject({
+      points: 4,
+      fgm: 2,
+      fga: 3,
+      threePm: 0,
+      threePa: 0,
+      ftm: 0,
+      fta: 0,
+      offensiveRebounds: 1,
+      defensiveRebounds: 1,
+      assists: 1,
+      steals: 0,
+      blocks: 1,
+      turnovers: 1,
+      personalFouls: 1,
+    })
+
+    expect(home?.stats).toMatchObject({
+      points: 7,
+      fgm: 2,
+      fga: 3,
+      threePm: 2,
+      threePa: 2,
+      ftm: 1,
+      fta: 2,
+      offensiveRebounds: 1,
+      defensiveRebounds: 0,
+      assists: 0,
+      steals: 1,
+      blocks: 0,
+      turnovers: 1,
+      personalFouls: 1,
+    })
+
+    expect(away?.players.find((player) => player.id === '1005')?.minutes).toBeCloseTo(4, 5)
+    expect(away?.players.find((player) => player.id === '1006')?.minutes).toBeCloseTo(8, 5)
+    expect(away?.players.find((player) => player.id === '1005')?.plusMinus).toBe(-3)
+    expect(away?.players.find((player) => player.id === '1006')?.plusMinus).toBe(0)
+    expect(home?.players.find((player) => player.id === '2001')?.plusMinus).toBe(3)
+    expect(away?.advanced.estimatedPossessions).toBeCloseTo(3, 5)
+    expect(home?.advanced.estimatedPossessions).toBeCloseTo(3.88, 5)
+    expect(home?.advanced.effectiveFieldGoalPercentage).toBeCloseTo(100, 5)
+  })
+})
