@@ -64,8 +64,8 @@ describe('analyzeMatchHtml', () => {
 
     expect(away?.players.find((player) => player.id === '1005')?.minutes).toBeCloseTo(4, 5)
     expect(away?.players.find((player) => player.id === '1006')?.minutes).toBeCloseTo(8, 5)
-    expect(away?.players.find((player) => player.id === '1005')?.plusMinus).toBe(0)
-    expect(away?.players.find((player) => player.id === '1006')?.plusMinus).toBe(-3)
+    expect(away?.players.find((player) => player.id === '1005')?.plusMinus).toBe(-3)
+    expect(away?.players.find((player) => player.id === '1006')?.plusMinus).toBe(0)
     expect(home?.players.find((player) => player.id === '2001')?.plusMinus).toBe(3)
     expect(away?.advanced.estimatedPossessions).toBeCloseTo(3, 5)
     expect(home?.advanced.estimatedPossessions).toBeCloseTo(3.88, 5)

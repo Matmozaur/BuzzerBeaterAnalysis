@@ -9,7 +9,7 @@ import type {
   TeamAnalysis,
   TeamSide,
   TeamTotals,
-} from './types'
+} from './types.js'
 
 const PASSER_PATTERNS = [
   /off of a nice pass from (\d+)/,
@@ -230,7 +230,7 @@ export function parseMatchHtml(html: string): ParsedMatch {
   const matchId = parseMatchId(formAction)
 
   const title = parseTitle($('title').text().trim())
-  if ('warning' in title) {
+  if ('warning' in title && title.warning) {
     warnings.push(title.warning)
   }
 
