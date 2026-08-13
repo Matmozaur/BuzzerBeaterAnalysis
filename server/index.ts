@@ -38,7 +38,12 @@ function parseMatchIdFromUrl(input: string) {
     throw new ClientInputError('Could not extract a match id from the URL.')
   }
 
-  return matchId
+  const numericMatchId = Number.parseInt(matchId, 10)
+  if (!Number.isSafeInteger(numericMatchId) || numericMatchId <= 0) {
+    throw new ClientInputError('The URL does not contain a valid numeric match id.')
+  }
+
+  return numericMatchId
 }
 
 function resolveAllowedOrigins() {
@@ -53,10 +58,10 @@ function resolveAllowedOrigins() {
   return process.env.NODE_ENV === 'production' ? new Set<string>() : LOCAL_ALLOWED_ORIGINS
 }
 
-async function fetchMatchHtml(matchId: string) {
+async function fetchMatchHtml(matchId: number) {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
-  const url = `https://www.buzzerbeater.com/match/${matchId}/pbp.aspx`
+  const url = new URL(`/match/${matchId.toString(10)}/pbp.aspx`, 'https://www.buzzerbeater.com/')
 
   try {
     let response: Response
