@@ -14,7 +14,7 @@ const LOCAL_ALLOWED_ORIGINS = new Set([
 class ClientInputError extends Error {}
 class UpstreamFetchError extends Error {}
 
-function assertBuzzerBeaterUrl(input: string) {
+function parseMatchIdFromUrl(input: string) {
   let parsedUrl: URL
 
   try {
@@ -33,7 +33,12 @@ function assertBuzzerBeaterUrl(input: string) {
     throw new ClientInputError('The URL must look like /match/{id}/pbp.aspx.')
   }
 
-  return parsedUrl.toString()
+  const matchId = parsedUrl.pathname.match(/\/match\/(\d+)\/pbp\.aspx$/i)?.[1]
+  if (!matchId) {
+    throw new ClientInputError('Could not extract a match id from the URL.')
+  }
+
+  return matchId
 }
 
 function resolveAllowedOrigins() {
@@ -48,9 +53,10 @@ function resolveAllowedOrigins() {
   return process.env.NODE_ENV === 'production' ? new Set<string>() : LOCAL_ALLOWED_ORIGINS
 }
 
-async function fetchMatchHtml(url: string) {
+async function fetchMatchHtml(matchId: string) {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  const url = `https://www.buzzerbeater.com/match/${matchId}/pbp.aspx`
 
   try {
     let response: Response
@@ -111,8 +117,8 @@ app.get('/health', (_request, response) => {
 
 app.post('/api/analyze', async (request, response) => {
   try {
-    const url = assertBuzzerBeaterUrl(String(request.body?.url ?? ''))
-    const html = await fetchMatchHtml(url)
+    const matchId = parseMatchIdFromUrl(String(request.body?.url ?? ''))
+    const html = await fetchMatchHtml(matchId)
     const analysis = analyzeMatchHtml(html)
     response.json({ analysis })
   } catch (error) {
