@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: buzzerbeater-analysis-api
+    env: node
+    plan: free
+    buildCommand: npm ci && npm run build:server
+    startCommand: npm run start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: CORS_ORIGIN
+        sync: false
