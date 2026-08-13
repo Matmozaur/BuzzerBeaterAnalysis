@@ -11,8 +11,7 @@
     "build:server": "tsc -b tsconfig.server.json",
     "lint": "oxlint",
     "test": "vitest run",
-    "preview": "vite preview"
-    ,
+    "preview": "vite preview",
     "start": "node server-dist/server/index.js"
   },
   "dependencies": {

@@ -4,6 +4,15 @@ import { analyzeMatchHtml } from '../src/lib/analyzer.js'
 
 const PORT = Number(process.env.PORT ?? 3001)
 const REQUEST_TIMEOUT_MS = 20_000
+const LOCAL_ALLOWED_ORIGINS = new Set([
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:4173',
+  'http://127.0.0.1:4173',
+])
+
+class ClientInputError extends Error {}
+class UpstreamFetchError extends Error {}
 
 function assertBuzzerBeaterUrl(input: string) {
   let parsedUrl: URL
@@ -11,18 +20,32 @@ function assertBuzzerBeaterUrl(input: string) {
   try {
     parsedUrl = new URL(input)
   } catch {
-    throw new Error('Please provide a valid BuzzerBeater play-by-play URL.')
+    throw new ClientInputError('Please provide a valid BuzzerBeater play-by-play URL.')
   }
 
-  if (!/^www\d*\.?buzzerbeater\.(com|org)$/i.test(parsedUrl.hostname) && !/^buzzerbeater\.(com|org)$/i.test(parsedUrl.hostname)) {
-    throw new Error('Only buzzerbeater.com and buzzerbeater.org play-by-play URLs are supported.')
+  if (!/^www\d*\.buzzerbeater\.(com|org)$/i.test(parsedUrl.hostname) && !/^buzzerbeater\.(com|org)$/i.test(parsedUrl.hostname)) {
+    throw new ClientInputError(
+      'Only buzzerbeater.com and buzzerbeater.org play-by-play URLs are supported.',
+    )
   }
 
   if (!/\/match\/\d+\/pbp\.aspx$/i.test(parsedUrl.pathname)) {
-    throw new Error('The URL must look like /match/{id}/pbp.aspx.')
+    throw new ClientInputError('The URL must look like /match/{id}/pbp.aspx.')
   }
 
   return parsedUrl.toString()
+}
+
+function resolveAllowedOrigins() {
+  const configuredOrigins = process.env.CORS_ORIGIN?.split(',')
+    .map((value) => value.trim())
+    .filter(Boolean)
+
+  if (configuredOrigins && configuredOrigins.length > 0) {
+    return new Set(configuredOrigins)
+  }
+
+  return process.env.NODE_ENV === 'production' ? new Set<string>() : LOCAL_ALLOWED_ORIGINS
 }
 
 async function fetchMatchHtml(url: string) {
@@ -30,20 +53,31 @@ async function fetchMatchHtml(url: string) {
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
   try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'BuzzerBeaterAnalysis/1.0 (+https://github.com/Matmozaur/BuzzerBeaterAnalysis)',
-      },
-    })
+    let response: Response
+
+    try {
+      response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent':
+            'BuzzerBeaterAnalysis/1.0 (+https://github.com/Matmozaur/BuzzerBeaterAnalysis)',
+        },
+      })
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new UpstreamFetchError('Timed out while fetching the BuzzerBeater page.')
+      }
+
+      throw new UpstreamFetchError('Could not reach BuzzerBeater from the backend API.')
+    }
 
     if (!response.ok) {
-      throw new Error(`BuzzerBeater responded with HTTP ${response.status}.`)
+      throw new UpstreamFetchError(`BuzzerBeater responded with HTTP ${response.status}.`)
     }
 
     const html = await response.text()
     if (!html.includes('aspnetForm') || !html.includes('ctl00_cphContent_text')) {
-      throw new Error(
+      throw new UpstreamFetchError(
         'The fetched page did not contain the expected play-by-play markup. The match may require login or Supporter access.',
       )
     }
@@ -55,10 +89,18 @@ async function fetchMatchHtml(url: string) {
 }
 
 const app = express()
+const allowedOrigins = resolveAllowedOrigins()
 
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN?.split(',').map((value) => value.trim()) ?? true,
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.has(origin)) {
+        callback(null, true)
+        return
+      }
+
+      callback(new ClientInputError('Origin is not allowed to call this API.'))
+    },
   }),
 )
 app.use(express.json())
@@ -74,7 +116,10 @@ app.post('/api/analyze', async (request, response) => {
     const analysis = analyzeMatchHtml(html)
     response.json({ analysis })
   } catch (error) {
-    response.status(400).json({
+    const status =
+      error instanceof ClientInputError ? 400 : error instanceof UpstreamFetchError ? 502 : 500
+
+    response.status(status).json({
       error:
         error instanceof Error
           ? error.message
