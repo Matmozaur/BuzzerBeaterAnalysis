@@ -13,6 +13,7 @@ const LOCAL_ALLOWED_ORIGINS = new Set([
 
 class ClientInputError extends Error {}
 class UpstreamFetchError extends Error {}
+// Keep this below the JSON parser limit to leave room for JSON encoding overhead.
 const MAX_UPLOADED_HTML_LENGTH = 2_000_000
 
 function parseMatchIdFromUrl(input: string) {
@@ -117,6 +118,16 @@ function parseUploadedHtml(input: unknown) {
   return html
 }
 
+function withFetchMode(analysis: ReturnType<typeof analyzeMatchHtml>, fetchMode: string) {
+  return {
+    ...analysis,
+    summary: {
+      ...analysis.summary,
+      fetchMode,
+    },
+  }
+}
+
 const app = express()
 const allowedOrigins = resolveAllowedOrigins()
 
@@ -145,17 +156,22 @@ app.post('/api/analyze', async (request, response) => {
 
     if (uploadedHtml) {
       try {
-        analysis = analyzeMatchHtml(uploadedHtml)
+        analysis = withFetchMode(
+          analyzeMatchHtml(uploadedHtml),
+          'Uploaded HTML analyzed through the Node API.',
+        )
       } catch (error) {
         throw new ClientInputError(
           error instanceof Error ? error.message : 'Could not parse the uploaded HTML file.',
         )
       }
-      analysis.summary.fetchMode = 'Uploaded HTML analyzed through the Node API.'
     } else {
       const matchId = parseMatchIdFromUrl(String(request.body?.url ?? ''))
       const html = await fetchMatchHtml(matchId)
-      analysis = analyzeMatchHtml(html)
+      analysis = withFetchMode(
+        analyzeMatchHtml(html),
+        'Server-side fetch through the Node API because browser CORS cannot be relied on.',
+      )
     }
 
     response.json({ analysis })
