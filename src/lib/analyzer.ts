@@ -62,9 +62,11 @@ const THREE_POINT_EVENT_TYPES = new Set([
 const FOUL_EVENT_TYPES = new Set(['NOSHOOT_FOUL', 'OFF_FOUL', 'SHOOTING_FOUL', 'TECHNICAL'])
 const TURNOVER_EVENT_TYPES = new Set(['BAD_PASS', 'OFF_FOUL', 'THREE_SECOND', 'TRAVEL'])
 const STEAL_EVENT_TYPES = new Set(['STEAL', 'STEAL_ON_PASS'])
+const MATCH_PATH_PATTERN = /\/match\/(\d+)\/pbp\.aspx(?:[?#].*)?$/i
+const PLAYER_PATH_PATTERN = /\/player\/(\d+)\/overview\.aspx(?:[?#].*)?$/i
 
 function parseMatchId(action: string | undefined) {
-  const match = action?.match(/\/match\/(\d+)\/pbp\.aspx/i)
+  const match = action?.match(MATCH_PATH_PATTERN)
   if (!match) {
     throw new Error('Could not determine the match id from aspnetForm action.')
   }
@@ -89,7 +91,7 @@ function parseTitle(titleText: string) {
 }
 
 function parseScore(scoreText: string) {
-  const match = scoreText.match(/(\d+)\s*-\s*(\d+)/)
+  const match = scoreText.match(/(\d+)\s*[-–—]\s*(\d+)/)
   if (!match) {
     return { away: 0, home: 0 }
   }
@@ -186,6 +188,19 @@ function findShooter(play: ParsedPlay, passerId: string | null, defenderId: stri
   )
 }
 
+function extractPlayerIdFromHref(href: string) {
+  return href.match(PLAYER_PATH_PATTERN)?.[1] ?? null
+}
+
+function collectPlayerAnchorElements(
+  $: cheerio.CheerioAPI,
+  elements: cheerio.Cheerio<cheerio.Element>,
+) {
+  return elements
+    .toArray()
+    .filter((element) => extractPlayerIdFromHref($(element).attr('href') ?? '') !== null)
+}
+
 function playerTeamSide(players: Map<string, PlayerBoxScore>, playerId: string | null): TeamSide | null {
   if (!playerId) {
     return null
@@ -234,21 +249,22 @@ export function parseMatchHtml(html: string): ParsedMatch {
     warnings.push(title.warning)
   }
 
-  const allRosterAnchors = $('#cbPbp')
-    .find('a[href*="/player/"][href$="/overview.aspx"]')
+  const allRosterAnchors = collectPlayerAnchorElements(
+    $,
+    $('#cbPbp').find('a[href*="/player/"]'),
+  )
     .filter((_, element) => $(element).closest('#ctl00_cphContent_text').length === 0)
-    .toArray()
 
   const uniqueRosterPlayers = new Map<string, string>()
   for (const element of allRosterAnchors) {
     const href = $(element).attr('href') ?? ''
-    const match = href.match(/\/player\/(\d+)\/overview\.aspx/i)
-    if (!match) {
+    const playerId = extractPlayerIdFromHref(href)
+    if (!playerId) {
       continue
     }
 
-    if (!uniqueRosterPlayers.has(match[1])) {
-      uniqueRosterPlayers.set(match[1], $(element).text().trim())
+    if (!uniqueRosterPlayers.has(playerId)) {
+      uniqueRosterPlayers.set(playerId, $(element).text().trim())
     }
   }
 
@@ -292,23 +308,17 @@ export function parseMatchHtml(html: string): ParsedMatch {
       }
 
       const eventCell = $(cells[3]).clone()
-      const playerMentions = eventCell
-        .find('a[href*="/player/"][href$="/overview.aspx"]')
-        .map((_, element) => {
-          const href = $(element).attr('href') ?? ''
-          const match = href.match(/\/player\/(\d+)\/overview\.aspx/i)
-          const id = match?.[1]
-
+      const playerMentions = collectPlayerAnchorElements($, eventCell.find('a[href*="/player/"]'))
+        .map((element) => {
+          const id = extractPlayerIdFromHref($(element).attr('href') ?? '')
           return id ? { id, name: $(element).text().trim() } : null
         })
-        .get()
         .filter((value): value is { id: string; name: string } => Boolean(value))
 
-      eventCell.find('a[href*="/player/"][href$="/overview.aspx"]').each((_, element) => {
-        const href = $(element).attr('href') ?? ''
-        const match = href.match(/\/player\/(\d+)\/overview\.aspx/i)
-        if (match) {
-          $(element).text(match[1])
+      collectPlayerAnchorElements($, eventCell.find('a[href*="/player/"]')).forEach((element) => {
+        const playerId = extractPlayerIdFromHref($(element).attr('href') ?? '')
+        if (playerId) {
+          $(element).text(playerId)
         }
       })
 
