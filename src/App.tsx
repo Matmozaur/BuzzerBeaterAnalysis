@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { ChangeEvent } from 'react'
+import { analyzeMatchInput } from './lib/analysis'
 import type { MatchAnalysis } from './lib/types'
 
 const EXAMPLE_URL = 'https://www.buzzerbeater.com/match/140140858/pbp.aspx'
@@ -17,11 +18,6 @@ function formatMinutes(value: number) {
   return `${wholeMinutes}:${String(seconds).padStart(2, '0')}`
 }
 
-function apiUrl(path: string) {
-  const base = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ?? ''
-  return `${base}${path}`
-}
-
 function App() {
   const [url, setUrl] = useState(EXAMPLE_URL)
   const [uploadedHtml, setUploadedHtml] = useState('')
@@ -36,31 +32,13 @@ function App() {
     setError('')
 
     try {
-      const trimmedUrl = url.trim()
-      if (!uploadedHtml && !trimmedUrl) {
-        throw new Error('Paste a play-by-play URL or upload an HTML file.')
-      }
-
-      const response = await fetch(apiUrl('/api/analyze'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(uploadedHtml ? { html: uploadedHtml } : { url: trimmedUrl }),
+      const nextAnalysis = await analyzeMatchInput({
+        url,
+        uploadedHtml,
+        apiBaseUrl: import.meta.env.VITE_API_BASE_URL,
       })
 
-      const contentType = response.headers.get('content-type') ?? ''
-      if (!contentType.includes('application/json')) {
-        throw new Error(
-          'The API returned an unexpected response. The backend server may be unavailable or VITE_API_BASE_URL may not be configured.',
-        )
-      }
-
-      const payload = (await response.json()) as { error?: string; analysis?: MatchAnalysis }
-
-      if (!response.ok || !payload.analysis) {
-        throw new Error(payload.error ?? 'Analysis failed.')
-      }
-
-      setAnalysis(payload.analysis)
+      setAnalysis(nextAnalysis)
       setStatus('success')
     } catch (submissionError) {
       setAnalysis(null)

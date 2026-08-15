@@ -17,6 +17,31 @@ describe('parseMatchHtml', () => {
     expect(parsed.plays[0]?.eventType).toBe('JUMP_BALL')
     expect(parsed.plays[3]?.eventIdText).toContain('1001 gets off a great pass to 1002')
   })
+
+  it('accepts saved-match HTML with absolute urls, query strings, and en-dash scores', () => {
+    const savedMatchHtml = fixture
+      .replace(
+        'action="/match/140140858/pbp.aspx"',
+        'action="https://www.buzzerbeater.com/match/140140858/pbp.aspx?save=1"',
+      )
+      .replaceAll(
+        'href="/player/',
+        'href="https://www.buzzerbeater.com/player/',
+      )
+      .replaceAll('/overview.aspx"', '/overview.aspx?tab=boxscore"')
+      .replaceAll(' - ', ' – ')
+
+    const parsed = parseMatchHtml(savedMatchHtml)
+
+    expect(parsed.matchId).toBe('140140858')
+    expect(parsed.teams.away.players[0]).toMatchObject({ id: '1001', name: 'Away Starter 1' })
+    expect(parsed.teams.home.players[0]).toMatchObject({ id: '2001', name: 'Home Starter 1' })
+    expect(parsed.plays[4]).toMatchObject({
+      eventType: 'STRAIGHT_ON_THREE',
+      scoreAway: 2,
+      scoreHome: 3,
+    })
+  })
 })
 
 describe('analyzeMatchHtml', () => {
