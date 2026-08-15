@@ -47,6 +47,13 @@ function App() {
         body: JSON.stringify(uploadedHtml ? { html: uploadedHtml } : { url: trimmedUrl }),
       })
 
+      const contentType = response.headers.get('content-type') ?? ''
+      if (!contentType.includes('application/json')) {
+        throw new Error(
+          'The API returned an unexpected response. The backend server may be unavailable or VITE_API_BASE_URL may not be configured.',
+        )
+      }
+
       const payload = (await response.json()) as { error?: string; analysis?: MatchAnalysis }
 
       if (!response.ok || !payload.analysis) {
