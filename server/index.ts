@@ -13,6 +13,7 @@ const LOCAL_ALLOWED_ORIGINS = new Set([
 
 class ClientInputError extends Error {}
 class UpstreamFetchError extends Error {}
+const MAX_UPLOADED_HTML_LENGTH = 2_000_000
 
 function parseMatchIdFromUrl(input: string) {
   let parsedUrl: URL
@@ -79,6 +80,23 @@ async function fetchMatchHtml(matchId: number) {
         throw new UpstreamFetchError('Timed out while fetching the BuzzerBeater page.')
       }
 
+      function parseUploadedHtml(input: unknown) {
+        if (typeof input !== 'string') {
+          return null
+        }
+
+        const html = input.trim()
+        if (html.length === 0) {
+          return null
+        }
+
+        if (html.length > MAX_UPLOADED_HTML_LENGTH) {
+          throw new ClientInputError('Uploaded HTML is too large.')
+        }
+
+        return html
+      }
+
       throw new UpstreamFetchError('Could not reach BuzzerBeater from the backend API.')
     }
 
@@ -114,7 +132,7 @@ app.use(
     },
   }),
 )
-app.use(express.json())
+app.use(express.json({ limit: '3mb' }))
 
 app.get('/health', (_request, response) => {
   response.json({ ok: true })
@@ -122,9 +140,24 @@ app.get('/health', (_request, response) => {
 
 app.post('/api/analyze', async (request, response) => {
   try {
-    const matchId = parseMatchIdFromUrl(String(request.body?.url ?? ''))
-    const html = await fetchMatchHtml(matchId)
-    const analysis = analyzeMatchHtml(html)
+    const uploadedHtml = parseUploadedHtml(request.body?.html)
+    let analysis
+
+    if (uploadedHtml) {
+      try {
+        analysis = analyzeMatchHtml(uploadedHtml)
+      } catch (error) {
+        throw new ClientInputError(
+          error instanceof Error ? error.message : 'Could not parse the uploaded HTML file.',
+        )
+      }
+      analysis.summary.fetchMode = 'Uploaded HTML analyzed through the Node API.'
+    } else {
+      const matchId = parseMatchIdFromUrl(String(request.body?.url ?? ''))
+      const html = await fetchMatchHtml(matchId)
+      analysis = analyzeMatchHtml(html)
+    }
+
     response.json({ analysis })
   } catch (error) {
     const status =
