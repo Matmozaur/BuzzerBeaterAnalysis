@@ -1,6 +1,11 @@
 import cors from 'cors'
 import express from 'express'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { analyzeMatchHtml } from '../src/lib/analyzer.js'
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
 const PORT = Number(process.env.PORT ?? 3001)
 const REQUEST_TIMEOUT_MS = 20_000
@@ -187,6 +192,14 @@ app.post('/api/analyze', async (request, response) => {
     })
   }
 })
+
+const distDir = join(__dirname, '..', '..', 'dist')
+if (existsSync(distDir)) {
+  app.use(express.static(distDir))
+  app.use((_request, response) => {
+    response.sendFile(join(distDir, 'index.html'))
+  })
+}
 
 app.listen(PORT, () => {
   console.log(`BuzzerBeater analysis API listening on ${PORT}`)

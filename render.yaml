@@ -3,7 +3,7 @@ services:
     name: buzzerbeater-analysis-api
     env: node
     plan: free
-    buildCommand: npm ci && npm run build:server
+    buildCommand: npm ci && npm run build
     startCommand: npm run start
     healthCheckPath: /health
     envVars:
