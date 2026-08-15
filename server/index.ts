@@ -80,23 +80,6 @@ async function fetchMatchHtml(matchId: number) {
         throw new UpstreamFetchError('Timed out while fetching the BuzzerBeater page.')
       }
 
-      function parseUploadedHtml(input: unknown) {
-        if (typeof input !== 'string') {
-          return null
-        }
-
-        const html = input.trim()
-        if (html.length === 0) {
-          return null
-        }
-
-        if (html.length > MAX_UPLOADED_HTML_LENGTH) {
-          throw new ClientInputError('Uploaded HTML is too large.')
-        }
-
-        return html
-      }
-
       throw new UpstreamFetchError('Could not reach BuzzerBeater from the backend API.')
     }
 
@@ -115,6 +98,23 @@ async function fetchMatchHtml(matchId: number) {
   } finally {
     clearTimeout(timeout)
   }
+}
+
+function parseUploadedHtml(input: unknown) {
+  if (typeof input !== 'string') {
+    return null
+  }
+
+  const html = input.trim()
+  if (html.length === 0) {
+    return null
+  }
+
+  if (html.length > MAX_UPLOADED_HTML_LENGTH) {
+    throw new ClientInputError('Uploaded HTML is too large.')
+  }
+
+  return html
 }
 
 const app = express()
