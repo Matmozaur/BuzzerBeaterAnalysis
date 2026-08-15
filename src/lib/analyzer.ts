@@ -194,7 +194,7 @@ function extractPlayerIdFromHref(href: string) {
 
 function collectPlayerAnchorElements(
   $: cheerio.CheerioAPI,
-  elements: cheerio.Cheerio<cheerio.Element>,
+  elements: cheerio.Cheerio<any>,
 ) {
   return elements
     .toArray()
@@ -253,7 +253,7 @@ export function parseMatchHtml(html: string): ParsedMatch {
     $,
     $('#cbPbp').find('a[href*="/player/"]'),
   )
-    .filter((_, element) => $(element).closest('#ctl00_cphContent_text').length === 0)
+    .filter((element) => $(element).closest('#ctl00_cphContent_text').length === 0)
 
   const uniqueRosterPlayers = new Map<string, string>()
   for (const element of allRosterAnchors) {
