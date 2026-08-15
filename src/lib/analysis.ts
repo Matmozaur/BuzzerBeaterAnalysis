@@ -50,6 +50,10 @@ export async function analyzeMatchInput({
 
   const contentType = response.headers.get('content-type') ?? ''
   if (!contentType.includes('application/json')) {
+    if (!response.ok) {
+      throw new Error(`The backend API returned HTTP ${response.status}.`)
+    }
+
     throw new Error(UNEXPECTED_API_RESPONSE_ERROR)
   }
 

@@ -65,4 +65,21 @@ describe('analyzeMatchInput', () => {
       }),
     ).rejects.toThrow(UNEXPECTED_API_RESPONSE_ERROR)
   })
+
+  it('surfaces non-json http failures with their status code', async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue({
+      ok: false,
+      status: 502,
+      headers: new Headers({ 'content-type': 'text/html; charset=utf-8' }),
+      json: async () => ({}),
+    } as Response)
+
+    await expect(
+      analyzeMatchInput({
+        url: 'https://www.buzzerbeater.com/match/140140858/pbp.aspx',
+        uploadedHtml: '',
+        fetchImpl,
+      }),
+    ).rejects.toThrow('The backend API returned HTTP 502.')
+  })
 })

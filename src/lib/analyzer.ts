@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio'
+import type { AnyNode } from 'domhandler'
 import type {
   MatchAnalysis,
   ParsedMatch,
@@ -194,7 +195,7 @@ function extractPlayerIdFromHref(href: string) {
 
 function collectPlayerAnchorElements(
   $: cheerio.CheerioAPI,
-  elements: cheerio.Cheerio<any>,
+  elements: cheerio.Cheerio<AnyNode>,
 ) {
   return elements
     .toArray()
