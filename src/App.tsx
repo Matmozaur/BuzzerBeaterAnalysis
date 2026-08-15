@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
+import type { ChangeEvent } from 'react'
 import type { MatchAnalysis } from './lib/types'
 
 const EXAMPLE_URL = 'https://www.buzzerbeater.com/match/140140858/pbp.aspx'
@@ -23,6 +24,8 @@ function apiUrl(path: string) {
 
 function App() {
   const [url, setUrl] = useState(EXAMPLE_URL)
+  const [uploadedHtml, setUploadedHtml] = useState('')
+  const [uploadedFileName, setUploadedFileName] = useState('')
   const [status, setStatus] = useState<Status>('idle')
   const [error, setError] = useState('')
   const [analysis, setAnalysis] = useState<MatchAnalysis | null>(null)
@@ -33,10 +36,15 @@ function App() {
     setError('')
 
     try {
+      const trimmedUrl = url.trim()
+      if (!uploadedHtml && !trimmedUrl) {
+        throw new Error('Paste a play-by-play URL or upload an HTML file.')
+      }
+
       const response = await fetch(apiUrl('/api/analyze'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify(uploadedHtml ? { html: uploadedHtml } : { url: trimmedUrl }),
       })
 
       const payload = (await response.json()) as { error?: string; analysis?: MatchAnalysis }
@@ -58,16 +66,29 @@ function App() {
     }
   }
 
+  async function onFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) {
+      setUploadedHtml('')
+      setUploadedFileName('')
+      return
+    }
+
+    const html = await file.text()
+    setUploadedHtml(html)
+    setUploadedFileName(file.name)
+  }
+
   const teams = useMemo(() => analysis?.teams ?? [], [analysis])
 
   return (
     <main className="page-shell">
       <section className="hero-card">
-        <p className="eyebrow">Deterministic BuzzerBeater analytics</p>
+        <p className="eyebrow">BuzzerBeater analytics</p>
         <h1>BuzzerBeater Match Analyzer</h1>
         <p className="hero-copy">
           Paste a BuzzerBeater play-by-play URL and get team box scores, player stats, and
-          advanced efficiency metrics without using AI.
+          advanced efficiency metrics.
         </p>
 
         <form className="analyze-form" onSubmit={onSubmit}>
@@ -78,9 +99,13 @@ function App() {
               value={url}
               onChange={(event) => setUrl(event.target.value)}
               placeholder={EXAMPLE_URL}
-              required
             />
           </label>
+          <label className="field">
+            <span>Or upload play-by-play HTML</span>
+            <input type="file" accept=".html,text/html" onChange={onFileChange} />
+          </label>
+          {uploadedFileName ? <p className="hint">Using uploaded file: {uploadedFileName}</p> : null}
           <button type="submit" disabled={status === 'loading'}>
             {status === 'loading' ? 'Analyzing…' : 'Analyze'}
           </button>

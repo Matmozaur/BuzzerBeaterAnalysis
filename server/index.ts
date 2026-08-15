@@ -13,6 +13,8 @@ const LOCAL_ALLOWED_ORIGINS = new Set([
 
 class ClientInputError extends Error {}
 class UpstreamFetchError extends Error {}
+// Keep this below the JSON parser limit to leave room for JSON encoding overhead.
+const MAX_UPLOADED_HTML_LENGTH = 2_000_000
 
 function parseMatchIdFromUrl(input: string) {
   let parsedUrl: URL
@@ -99,6 +101,33 @@ async function fetchMatchHtml(matchId: number) {
   }
 }
 
+function parseUploadedHtml(input: unknown) {
+  if (typeof input !== 'string') {
+    return null
+  }
+
+  const html = input.trim()
+  if (html.length === 0) {
+    return null
+  }
+
+  if (html.length > MAX_UPLOADED_HTML_LENGTH) {
+    throw new ClientInputError('Uploaded HTML is too large.')
+  }
+
+  return html
+}
+
+function withFetchMode(analysis: ReturnType<typeof analyzeMatchHtml>, fetchMode: string) {
+  return {
+    ...analysis,
+    summary: {
+      ...analysis.summary,
+      fetchMode,
+    },
+  }
+}
+
 const app = express()
 const allowedOrigins = resolveAllowedOrigins()
 
@@ -114,7 +143,7 @@ app.use(
     },
   }),
 )
-app.use(express.json())
+app.use(express.json({ limit: '3mb' }))
 
 app.get('/health', (_request, response) => {
   response.json({ ok: true })
@@ -122,9 +151,29 @@ app.get('/health', (_request, response) => {
 
 app.post('/api/analyze', async (request, response) => {
   try {
-    const matchId = parseMatchIdFromUrl(String(request.body?.url ?? ''))
-    const html = await fetchMatchHtml(matchId)
-    const analysis = analyzeMatchHtml(html)
+    const uploadedHtml = parseUploadedHtml(request.body?.html)
+    let analysis
+
+    if (uploadedHtml) {
+      try {
+        analysis = withFetchMode(
+          analyzeMatchHtml(uploadedHtml),
+          'Uploaded HTML analyzed through the Node API.',
+        )
+      } catch (error) {
+        throw new ClientInputError(
+          error instanceof Error ? error.message : 'Could not parse the uploaded HTML file.',
+        )
+      }
+    } else {
+      const matchId = parseMatchIdFromUrl(String(request.body?.url ?? ''))
+      const html = await fetchMatchHtml(matchId)
+      analysis = withFetchMode(
+        analyzeMatchHtml(html),
+        'Server-side fetch through the Node API because browser CORS cannot be relied on.',
+      )
+    }
+
     response.json({ analysis })
   } catch (error) {
     const status =
