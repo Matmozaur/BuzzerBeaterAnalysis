@@ -19,8 +19,9 @@ The backend is required because direct browser fetches to BuzzerBeater cannot be
 The parser is designed around observed BuzzerBeater selectors, not invented ones:
 
 - `form#aspnetForm[action="/match/{id}/pbp.aspx"]`
+- saved exports with `form#form1[action="https://www.buzzerbeater.com/match/{id}/pbp.aspx"]`
 - `#cbPbp a[href*="/player/"][href$="/overview.aspx"]` for roster/link extraction
-- `#ctl00_cphContent_text table tr[class]` for play rows
+- `#ctl00_cphContent_text table tr[class]` or `#cphContent_text table tr[class]` for play rows
 - row cells interpreted as:
   1. quarter
   2. clock
@@ -120,6 +121,8 @@ Workflow:
 Required repository variable:
 
 - `VITE_API_BASE_URL` = public URL of the deployed backend API
+
+If that variable is not set on GitHub Pages, the frontend falls back to the default Render service URL from `render.yaml`.
 
 ### Backend
 

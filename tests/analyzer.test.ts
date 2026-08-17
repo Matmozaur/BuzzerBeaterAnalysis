@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { analyzeMatchHtml, parseMatchHtml } from '../src/lib/analyzer'
 
 const fixture = readFileSync(join(process.cwd(), 'tests/fixtures/sample-pbp.html'), 'utf8')
+const savedFixture = readFileSync(join(process.cwd(), 'Example_match_html.html'), 'utf8')
 
 describe('parseMatchHtml', () => {
   it('parses the real observed ASP.NET containers and table rows', () => {
@@ -41,6 +42,17 @@ describe('parseMatchHtml', () => {
       scoreAway: 2,
       scoreHome: 3,
     })
+  })
+
+  it('accepts the repository example HTML saved with form1 and cphContent_text ids', () => {
+    const parsed = parseMatchHtml(savedFixture)
+
+    expect(parsed.matchId).toBe('140140858')
+    expect(parsed.teams.away.name).toBe('Analityczne Dinozaury')
+    expect(parsed.teams.home.name).toBe('Zakanał United')
+    expect(parsed.teams.away.players.length).toBeGreaterThanOrEqual(5)
+    expect(parsed.teams.home.players.length).toBeGreaterThanOrEqual(5)
+    expect(parsed.plays[0]?.eventType).toBe('JUMP_BALL')
   })
 })
 

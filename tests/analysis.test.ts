@@ -2,9 +2,11 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import {
+  DEFAULT_PRODUCTION_API_BASE_URL,
   UNEXPECTED_API_RESPONSE_ERROR,
   UPLOADED_HTML_FETCH_MODE,
   analyzeMatchInput,
+  buildApiUrl,
 } from '../src/lib/analysis'
 
 const fixture = readFileSync(join(process.cwd(), 'tests/fixtures/sample-pbp.html'), 'utf8')
@@ -81,5 +83,17 @@ describe('analyzeMatchInput', () => {
         fetchImpl,
       }),
     ).rejects.toThrow('The backend API returned HTTP 502.')
+  })
+})
+
+describe('buildApiUrl', () => {
+  it('falls back to the deployed Render API on GitHub Pages when no base url is configured', () => {
+    try {
+      vi.stubGlobal('location', { hostname: 'matmozaur.github.io' })
+
+      expect(buildApiUrl('/api/analyze')).toBe(`${DEFAULT_PRODUCTION_API_BASE_URL}/api/analyze`)
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 })

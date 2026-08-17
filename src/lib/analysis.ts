@@ -4,6 +4,21 @@ import type { MatchAnalysis } from './types.js'
 export const UPLOADED_HTML_FETCH_MODE = 'Uploaded HTML analyzed directly in the browser.'
 export const UNEXPECTED_API_RESPONSE_ERROR =
   'The API returned an unexpected response. The backend server may be unavailable or VITE_API_BASE_URL may not be configured.'
+export const DEFAULT_PRODUCTION_API_BASE_URL = 'https://buzzerbeater-analysis-api.onrender.com'
+
+export function resolveApiBaseUrl(baseUrl?: string) {
+  const trimmedBaseUrl = baseUrl?.trim()
+  if (trimmedBaseUrl) {
+    return trimmedBaseUrl
+  }
+
+  const location = globalThis.location
+  if (location?.hostname === 'github.io' || location?.hostname?.endsWith('.github.io')) {
+    return DEFAULT_PRODUCTION_API_BASE_URL
+  }
+
+  return undefined
+}
 
 function withFetchMode(analysis: MatchAnalysis, fetchMode: string): MatchAnalysis {
   return {
@@ -16,7 +31,7 @@ function withFetchMode(analysis: MatchAnalysis, fetchMode: string): MatchAnalysi
 }
 
 export function buildApiUrl(path: string, baseUrl?: string) {
-  const base = baseUrl?.replace(/\/$/, '') ?? ''
+  const base = resolveApiBaseUrl(baseUrl)?.replace(/\/$/, '') ?? ''
   return `${base}${path}`
 }
 
@@ -51,6 +66,12 @@ export async function analyzeMatchInput({
   const contentType = response.headers.get('content-type') ?? ''
   if (!contentType.includes('application/json')) {
     if (!response.ok) {
+      if (response.status === 405) {
+        throw new Error(
+          'The backend API returned HTTP 405. The deployed frontend is likely pointing at a static host instead of the Node API.',
+        )
+      }
+
       throw new Error(`The backend API returned HTTP ${response.status}.`)
     }
 
