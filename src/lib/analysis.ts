@@ -13,7 +13,7 @@ export function resolveApiBaseUrl(baseUrl?: string) {
   }
 
   const location = globalThis.location
-  if (location?.hostname?.endsWith('github.io')) {
+  if (location?.hostname === 'github.io' || location?.hostname?.endsWith('.github.io')) {
     return DEFAULT_PRODUCTION_API_BASE_URL
   }
 
