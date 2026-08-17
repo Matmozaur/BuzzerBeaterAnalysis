@@ -90,16 +90,18 @@ describe('buildApiUrl', () => {
   it('falls back to the deployed Render API on GitHub Pages when no base url is configured', () => {
     const originalLocation = globalThis.location
 
-    Object.defineProperty(globalThis, 'location', {
-      value: new URL('https://matmozaur.github.io/BuzzerBeaterAnalysis/'),
-      configurable: true,
-    })
+    try {
+      Object.defineProperty(globalThis, 'location', {
+        value: new URL('https://matmozaur.github.io/BuzzerBeaterAnalysis/'),
+        configurable: true,
+      })
 
-    expect(buildApiUrl('/api/analyze')).toBe(`${DEFAULT_PRODUCTION_API_BASE_URL}/api/analyze`)
-
-    Object.defineProperty(globalThis, 'location', {
-      value: originalLocation,
-      configurable: true,
-    })
+      expect(buildApiUrl('/api/analyze')).toBe(`${DEFAULT_PRODUCTION_API_BASE_URL}/api/analyze`)
+    } finally {
+      Object.defineProperty(globalThis, 'location', {
+        value: originalLocation,
+        configurable: true,
+      })
+    }
   })
 })
