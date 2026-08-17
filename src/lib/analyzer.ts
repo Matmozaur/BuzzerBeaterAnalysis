@@ -65,6 +65,7 @@ const TURNOVER_EVENT_TYPES = new Set(['BAD_PASS', 'OFF_FOUL', 'THREE_SECOND', 'T
 const STEAL_EVENT_TYPES = new Set(['STEAL', 'STEAL_ON_PASS'])
 const MATCH_PATH_PATTERN = /\/match\/(\d+)\/pbp\.aspx(?:[?#].*)?$/i
 const PLAYER_PATH_PATTERN = /\/player\/(\d+)\/overview\.aspx(?:[?#].*)?$/i
+const PLAY_TEXT_CONTAINER_SELECTOR = '#ctl00_cphContent_text, #cphContent_text'
 
 function parseMatchId(action: string | undefined) {
   const match = action?.match(MATCH_PATH_PATTERN)
@@ -242,7 +243,8 @@ function addMinutes(lineup: Set<string>, players: Map<string, PlayerBoxScore>, s
 export function parseMatchHtml(html: string): ParsedMatch {
   const $ = cheerio.load(html)
   const warnings: string[] = []
-  const formAction = $('#aspnetForm').attr('action')
+  const formAction =
+    $('#aspnetForm').attr('action') ?? $('form[action*="/match/"][action*="/pbp.aspx"]').first().attr('action')
   const matchId = parseMatchId(formAction)
 
   const title = parseTitle($('title').text().trim())
@@ -254,7 +256,7 @@ export function parseMatchHtml(html: string): ParsedMatch {
     $,
     $('#cbPbp').find('a[href*="/player/"]'),
   )
-    .filter((element) => $(element).closest('#ctl00_cphContent_text').length === 0)
+    .filter((element) => $(element).closest(PLAY_TEXT_CONTAINER_SELECTOR).length === 0)
 
   const uniqueRosterPlayers = new Map<string, string>()
   for (const element of allRosterAnchors) {
@@ -288,7 +290,7 @@ export function parseMatchHtml(html: string): ParsedMatch {
     isStarter: index < 5,
   }))
 
-  const playRows = $('#ctl00_cphContent_text')
+  const playRows = $(PLAY_TEXT_CONTAINER_SELECTOR)
     .find('table')
     .first()
     .find('tr[class]')
@@ -296,7 +298,7 @@ export function parseMatchHtml(html: string): ParsedMatch {
 
   if (playRows.length === 0) {
     throw new Error(
-      'Could not find play-by-play rows inside #ctl00_cphContent_text. BuzzerBeater may require login or Supporter access for this match.',
+      'Could not find play-by-play rows inside the expected play-by-play container. BuzzerBeater may require login or Supporter access for this match.',
     )
   }
 
@@ -610,7 +612,7 @@ export function analyzeParsedMatch(parsed: ParsedMatch): MatchAnalysis {
       totalPlays: parsed.plays.length,
       fetchMode: 'Server-side fetch through the Node API because browser CORS cannot be relied on.',
       parserEvidence:
-        'Parses aspnetForm, #cbPbp roster anchors, and #ctl00_cphContent_text table rows based on observed BuzzerBeater structure.',
+        'Parses the match form action, #cbPbp roster anchors, and the play-by-play table rows based on observed BuzzerBeater structure.',
       warnings: parsed.warnings,
     },
     teams,
