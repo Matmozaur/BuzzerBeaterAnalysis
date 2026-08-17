@@ -89,7 +89,7 @@ describe('analyzeMatchInput', () => {
 describe('buildApiUrl', () => {
   it('falls back to the deployed Render API on GitHub Pages when no base url is configured', () => {
     try {
-      vi.stubGlobal('location', new URL('https://matmozaur.github.io/BuzzerBeaterAnalysis/'))
+      vi.stubGlobal('location', { hostname: 'matmozaur.github.io' })
 
       expect(buildApiUrl('/api/analyze')).toBe(`${DEFAULT_PRODUCTION_API_BASE_URL}/api/analyze`)
     } finally {
