@@ -244,7 +244,9 @@ export function parseMatchHtml(html: string): ParsedMatch {
   const $ = cheerio.load(html)
   const warnings: string[] = []
   const formAction =
-    $('#aspnetForm').attr('action') ?? $('form[action*="/match/"][action*="/pbp.aspx"]').first().attr('action')
+    $('#aspnetForm').attr('action') ??
+    $('#form1').attr('action') ??
+    $('form[action*="/match/"][action*="/pbp.aspx"]').first().attr('action')
   const matchId = parseMatchId(formAction)
 
   const title = parseTitle($('title').text().trim())
