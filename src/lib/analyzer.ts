@@ -585,10 +585,6 @@ export function analyzeParsedMatch(parsed: ParsedMatch): MatchAnalysis {
       .sort((left, right) => Number(right.isStarter) - Number(left.isStarter) || right.minutes - left.minutes || left.name.localeCompare(right.name)),
   }
 
-  for (const player of players.values()) {
-    player.advanced = playerAdvancedMetrics(player)
-  }
-
   for (const player of playersByTeam.away) {
     awayTotals.points += player.points
     awayTotals.fgm += player.fgm
@@ -623,6 +619,10 @@ export function analyzeParsedMatch(parsed: ParsedMatch): MatchAnalysis {
     homeTotals.personalFouls += player.personalFouls
   }
 
+  for (const player of players.values()) {
+    player.advanced = playerAdvancedMetrics(player)
+  }
+
   const teams: TeamAnalysis[] = [
     {
       side: 'away',
@@ -647,7 +647,7 @@ export function analyzeParsedMatch(parsed: ParsedMatch): MatchAnalysis {
       homeTeam: { name: parsed.teams.home.name, points: homeTotals.points },
       periods: maxQuarter,
       totalPlays: parsed.plays.length,
-      fetchMode: 'Analyzed directly from the provided HTML.',
+      fetchMode: 'Uploaded HTML analyzed directly in the browser.',
       parserEvidence:
         'Parses the match form action, #cbPbp roster anchors, and the play-by-play table rows based on observed BuzzerBeater structure.',
       warnings: parsed.warnings,
