@@ -4,8 +4,6 @@ import type { ChangeEvent } from 'react'
 import { analyzeMatchInput } from './lib/analysis'
 import type { MatchAnalysis } from './lib/types'
 
-const EXAMPLE_URL = 'https://www.buzzerbeater.com/match/140140858/pbp.aspx'
-
 type Status = 'idle' | 'loading' | 'error' | 'success'
 
 function formatNumber(value: number, digits = 1) {
@@ -19,7 +17,6 @@ function formatMinutes(value: number) {
 }
 
 function App() {
-  const [url, setUrl] = useState(EXAMPLE_URL)
   const [uploadedHtml, setUploadedHtml] = useState('')
   const [uploadedFileName, setUploadedFileName] = useState('')
   const [status, setStatus] = useState<Status>('idle')
@@ -32,11 +29,7 @@ function App() {
     setError('')
 
     try {
-      const nextAnalysis = await analyzeMatchInput({
-        url,
-        uploadedHtml,
-        apiBaseUrl: import.meta.env.VITE_API_BASE_URL,
-      })
+      const nextAnalysis = await analyzeMatchInput({ uploadedHtml })
 
       setAnalysis(nextAnalysis)
       setStatus('success')
@@ -62,6 +55,8 @@ function App() {
     const html = await file.text()
     setUploadedHtml(html)
     setUploadedFileName(file.name)
+    setStatus('idle')
+    setError('')
   }
 
   const teams = useMemo(() => analysis?.teams ?? [], [analysis])
@@ -72,34 +67,22 @@ function App() {
         <p className="eyebrow">BuzzerBeater analytics</p>
         <h1>BuzzerBeater Match Analyzer</h1>
         <p className="hero-copy">
-          Paste a BuzzerBeater play-by-play URL and get team box scores, player stats, and
-          advanced efficiency metrics.
+          Upload a saved BuzzerBeater play-by-play HTML file to get team box scores, player
+          stats, and advanced player metrics.
         </p>
 
         <form className="analyze-form" onSubmit={onSubmit}>
           <label className="field">
-            <span>Play-by-play URL</span>
-            <input
-              type="url"
-              value={url}
-              onChange={(event) => setUrl(event.target.value)}
-              placeholder={EXAMPLE_URL}
-            />
-          </label>
-          <label className="field">
-            <span>Or upload play-by-play HTML</span>
+            <span>Play-by-play HTML</span>
             <input type="file" accept=".html,text/html" onChange={onFileChange} />
           </label>
-          {uploadedFileName ? <p className="hint">Using uploaded file: {uploadedFileName}</p> : null}
-          <button type="submit" disabled={status === 'loading'}>
+          <p className="hint">
+            {uploadedFileName ? `Using uploaded file: ${uploadedFileName}` : 'Choose an exported HTML file to begin.'}
+          </p>
+          <button type="submit" disabled={status === 'loading' || !uploadedHtml}>
             {status === 'loading' ? 'Analyzing…' : 'Analyze'}
           </button>
         </form>
-
-        <p className="hint">
-          Static frontends cannot reliably fetch BuzzerBeater PBP pages directly, so this app
-          uses a small backend API.
-        </p>
 
         {status === 'error' ? <div className="message error">{error}</div> : null}
       </section>
@@ -123,7 +106,7 @@ function App() {
             </div>
             <div className="summary-grid">
               <article>
-                <h3>Fetch architecture</h3>
+                <h3>Analysis mode</h3>
                 <p>{analysis.summary.fetchMode}</p>
               </article>
               <article>
@@ -289,6 +272,34 @@ function App() {
                           <td>{player.turnovers}</td>
                           <td>{player.personalFouls}</td>
                           <td>{player.plusMinus >= 0 ? `+${player.plusMinus}` : player.plusMinus}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="table-wrapper">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Player</th>
+                        <th>TRB</th>
+                        <th>eFG%</th>
+                        <th>TS%</th>
+                        <th>EFF</th>
+                        <th>Stocks</th>
+                        <th>Def plays</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {team.players.map((player) => (
+                        <tr key={`${player.id}-advanced`}>
+                          <th>{player.name}</th>
+                          <td>{player.advanced.totalRebounds}</td>
+                          <td>{formatNumber(player.advanced.effectiveFieldGoalPercentage, 1)}%</td>
+                          <td>{formatNumber(player.advanced.trueShootingPercentage, 1)}%</td>
+                          <td>{player.advanced.efficiency}</td>
+                          <td>{player.advanced.stocks}</td>
+                          <td>{player.advanced.defensivePlays}</td>
                         </tr>
                       ))}
                     </tbody>

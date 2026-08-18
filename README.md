@@ -1,18 +1,14 @@
 # BuzzerBeater Match Analyzer MVP
 
-One-page web app for deterministic analysis of BuzzerBeater play-by-play pages.
+One-page web app for deterministic analysis of saved BuzzerBeater play-by-play HTML files.
 
 ## Architecture
 
-- **Frontend:** React + Vite static app.
-- **Backend:** small Express API that fetches the play-by-play HTML and runs deterministic parsing/stat calculations.
+- **Frontend:** React + Vite static app that analyzes uploaded HTML locally in the browser.
+- **Backend:** small Express API kept in the repo for server-side fetch workflows.
 - **Shared logic:** `src/lib/analyzer.ts` parses the real ASP.NET play-by-play structure and computes all metrics.
 
-The backend is required because direct browser fetches to BuzzerBeater cannot be relied on:
-
-- the public evidence for `pbp.aspx` shows an ASP.NET WebForms page with `aspnetForm`, `#cbPbp`, and `#ctl00_cphContent_text`
-- BuzzerBeater tooling in the wild uses authenticated server-side scrapers/proxies
-- static browser apps cannot safely assume cross-origin access to the page
+The current UI only accepts uploaded HTML files, so analysis runs directly against the saved play-by-play markup.
 
 ## Real page structure used by the parser
 
@@ -47,6 +43,12 @@ Player metrics:
 - turnovers
 - personal fouls
 - plus/minus
+- total rebounds
+- eFG%
+- TS%
+- efficiency
+- stocks
+- defensive plays
 
 Team metrics:
 
@@ -71,20 +73,17 @@ npm ci
 
 ### Run locally
 
-In terminal 1:
-
 ```bash
 npm run dev
 ```
 
-In terminal 2:
+Frontend dev server: `http://localhost:5173`
+
+If you want to exercise the optional backend API, run it separately:
 
 ```bash
 npm run dev:server
 ```
-
-Frontend dev server: `http://localhost:5173`  
-Backend API: `http://localhost:3001`
 
 ## Scripts
 
@@ -118,13 +117,11 @@ Workflow:
 
 - `.github/workflows/deploy-pages.yml`
 
-Required repository variable:
-
-- `VITE_API_BASE_URL` = public URL of the deployed backend API
-
-If that variable is not set on GitHub Pages, the frontend falls back to the default Render service URL from `render.yaml`.
+No backend base URL is required for the current upload-only UI.
 
 ### Backend
+
+The backend remains available if you want to re-enable server-side URL fetching later.
 
 Render configuration is included in `render.yaml`.
 
@@ -137,7 +134,7 @@ Request body:
 
 ```json
 {
-  "url": "https://www.buzzerbeater.com/match/140140858/pbp.aspx"
+  "html": "<!doctype html>..."
 }
 ```
 
@@ -145,8 +142,7 @@ Request body:
 
 The UI/API returns explicit errors for:
 
-- invalid URLs
-- non-BuzzerBeater domains
+- missing uploaded HTML
 - unexpected/missing play-by-play markup
 - likely login / Supporter-only access issues
 
