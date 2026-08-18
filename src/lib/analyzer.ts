@@ -156,6 +156,29 @@ function advancedMetrics(team: TeamTotals, opponent: TeamTotals): TeamAdvancedMe
   }
 }
 
+function playerAdvancedMetrics(player: PlayerBoxScore) {
+  const totalRebounds = player.offensiveRebounds + player.defensiveRebounds
+  const stocks = player.steals + player.blocks
+  const defensivePlays = player.defensiveRebounds + stocks
+
+  return {
+    totalRebounds,
+    effectiveFieldGoalPercentage: percentage(player.fgm + 0.5 * player.threePm, player.fga),
+    trueShootingPercentage: percentage(player.points, 2 * (player.fga + 0.44 * player.fta)),
+    efficiency:
+      player.points +
+      totalRebounds +
+      player.assists +
+      player.steals +
+      player.blocks -
+      (player.fga - player.fgm) -
+      (player.fta - player.ftm) -
+      player.turnovers,
+    stocks,
+    defensivePlays,
+  }
+}
+
 function findFirstMentionedPlayerId(play: ParsedPlay) {
   return play.playerMentions.find((player) => player.id)?.id ?? null
 }
@@ -380,6 +403,14 @@ export function analyzeParsedMatch(parsed: ParsedMatch): MatchAnalysis {
       turnovers: 0,
       personalFouls: 0,
       plusMinus: 0,
+      advanced: {
+        totalRebounds: 0,
+        effectiveFieldGoalPercentage: 0,
+        trueShootingPercentage: 0,
+        efficiency: 0,
+        stocks: 0,
+        defensivePlays: 0,
+      },
     })
 
     if (rosterPlayer.isStarter) {
@@ -588,6 +619,10 @@ export function analyzeParsedMatch(parsed: ParsedMatch): MatchAnalysis {
     homeTotals.personalFouls += player.personalFouls
   }
 
+  for (const player of players.values()) {
+    player.advanced = playerAdvancedMetrics(player)
+  }
+
   const teams: TeamAnalysis[] = [
     {
       side: 'away',
@@ -612,7 +647,7 @@ export function analyzeParsedMatch(parsed: ParsedMatch): MatchAnalysis {
       homeTeam: { name: parsed.teams.home.name, points: homeTotals.points },
       periods: maxQuarter,
       totalPlays: parsed.plays.length,
-      fetchMode: 'Server-side fetch through the Node API because browser CORS cannot be relied on.',
+      fetchMode: 'Uploaded HTML analyzed directly in the browser.',
       parserEvidence:
         'Parses the match form action, #cbPbp roster anchors, and the play-by-play table rows based on observed BuzzerBeater structure.',
       warnings: parsed.warnings,

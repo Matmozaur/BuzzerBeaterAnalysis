@@ -104,6 +104,22 @@ describe('analyzeMatchHtml', () => {
     expect(away?.players.find((player) => player.id === '1005')?.plusMinus).toBe(-3)
     expect(away?.players.find((player) => player.id === '1006')?.plusMinus).toBe(0)
     expect(home?.players.find((player) => player.id === '2001')?.plusMinus).toBe(3)
+    expect(away?.players.find((player) => player.id === '1002')?.advanced).toMatchObject({
+      totalRebounds: 1,
+      effectiveFieldGoalPercentage: 100,
+      trueShootingPercentage: 100,
+      efficiency: 3,
+      stocks: 0,
+      defensivePlays: 1,
+    })
+    expect(home?.players.find((player) => player.id === '2001')?.advanced).toMatchObject({
+      totalRebounds: 0,
+      effectiveFieldGoalPercentage: 150,
+      trueShootingPercentage: 150,
+      efficiency: 3,
+      stocks: 1,
+      defensivePlays: 1,
+    })
     expect(away?.advanced.estimatedPossessions).toBeCloseTo(3, 5)
     expect(home?.advanced.estimatedPossessions).toBeCloseTo(3.88, 5)
     expect(home?.advanced.effectiveFieldGoalPercentage).toBeCloseTo(100, 5)

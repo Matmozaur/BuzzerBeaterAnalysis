@@ -40,6 +40,16 @@ export interface PlayerBoxScore {
   turnovers: number
   personalFouls: number
   plusMinus: number
+  advanced: PlayerAdvancedMetrics
+}
+
+export interface PlayerAdvancedMetrics {
+  totalRebounds: number
+  effectiveFieldGoalPercentage: number
+  trueShootingPercentage: number
+  efficiency: number
+  stocks: number
+  defensivePlays: number
 }
 
 export interface TeamTotals {
