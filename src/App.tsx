@@ -53,7 +53,7 @@ function formatMinutes(value: number) {
 
 function per48(stat: number, minutes: number) {
   if (!Number.isFinite(stat) || !Number.isFinite(minutes) || minutes <= 0) {
-    return 0
+    return Number.NaN
   }
 
   return (stat * 48) / minutes
@@ -134,6 +134,12 @@ function sortPlayers(team: TeamAnalysis, sortConfig: SortConfig) {
         return stringOrder * directionFactor
       }
     } else if (typeof leftValue === 'number' && typeof rightValue === 'number') {
+      if (Number.isNaN(leftValue) && !Number.isNaN(rightValue)) {
+        return 1
+      }
+      if (!Number.isNaN(leftValue) && Number.isNaN(rightValue)) {
+        return -1
+      }
       const numericOrder = leftValue - rightValue
       if (numericOrder !== 0) {
         return numericOrder * directionFactor
@@ -204,7 +210,14 @@ function App() {
   function toggleSort(nextKey: PlayerSortKey) {
     setSortConfig((current) => ({
       key: nextKey,
-      direction: current.key === nextKey && current.direction === 'desc' ? 'asc' : 'desc',
+      direction:
+        current.key === nextKey
+          ? current.direction === 'desc'
+            ? 'asc'
+            : 'desc'
+          : nextKey === 'name'
+            ? 'asc'
+            : 'desc',
     }))
   }
 
@@ -214,6 +227,25 @@ function App() {
     }
 
     return sortConfig.direction === 'asc' ? ' ↑' : ' ↓'
+  }
+
+  function ariaSort(key: PlayerSortKey): 'ascending' | 'descending' | 'none' {
+    if (sortConfig.key !== key) {
+      return 'none'
+    }
+
+    return sortConfig.direction === 'asc' ? 'ascending' : 'descending'
+  }
+
+  function sortableHeader(label: string, key: PlayerSortKey) {
+    return (
+      <th className="sortable-header" aria-sort={ariaSort(key)}>
+        <button type="button" onClick={() => toggleSort(key)}>
+          {label}
+          {sortIndicator(key)}
+        </button>
+      </th>
+    )
   }
 
   return (
@@ -385,149 +417,34 @@ function App() {
                   <table>
                     <thead>
                       <tr>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('name')}>
-                            Player{sortIndicator('name')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('minutes')}>
-                            MIN{sortIndicator('minutes')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('points')}>
-                            PTS{sortIndicator('points')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('fgm')}>
-                            FGM{sortIndicator('fgm')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('fga')}>
-                            FGA{sortIndicator('fga')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('threePm')}>
-                            3PM{sortIndicator('threePm')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('threePa')}>
-                            3PA{sortIndicator('threePa')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('ftm')}>
-                            FTM{sortIndicator('ftm')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('fta')}>
-                            FTA{sortIndicator('fta')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('offensiveRebounds')}>
-                            ORB{sortIndicator('offensiveRebounds')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('defensiveRebounds')}>
-                            DRB{sortIndicator('defensiveRebounds')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('totalRebounds')}>
-                            TRB{sortIndicator('totalRebounds')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('assists')}>
-                            AST{sortIndicator('assists')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('steals')}>
-                            STL{sortIndicator('steals')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('blocks')}>
-                            BLK{sortIndicator('blocks')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('turnovers')}>
-                            TO{sortIndicator('turnovers')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('personalFouls')}>
-                            PF{sortIndicator('personalFouls')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('plusMinus')}>
-                            +/{'-'}{sortIndicator('plusMinus')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button
-                            type="button"
-                            onClick={() => toggleSort('effectiveFieldGoalPercentage')}
-                          >
-                            eFG%{sortIndicator('effectiveFieldGoalPercentage')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('trueShootingPercentage')}>
-                            TS%{sortIndicator('trueShootingPercentage')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('efficiency')}>
-                            EFF{sortIndicator('efficiency')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('stocks')}>
-                            Stocks{sortIndicator('stocks')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('defensivePlays')}>
-                            Def plays{sortIndicator('defensivePlays')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('pointsPer48')}>
-                            PTS/48{sortIndicator('pointsPer48')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('assistsPer48')}>
-                            AST/48{sortIndicator('assistsPer48')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('blocksPer48')}>
-                            BLK/48{sortIndicator('blocksPer48')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('stealsPer48')}>
-                            STL/48{sortIndicator('stealsPer48')}
-                          </button>
-                        </th>
-                        <th className="sortable-header">
-                          <button type="button" onClick={() => toggleSort('reboundsPer48')}>
-                            REB/48{sortIndicator('reboundsPer48')}
-                          </button>
-                        </th>
+                        {sortableHeader('Player', 'name')}
+                        {sortableHeader('MIN', 'minutes')}
+                        {sortableHeader('PTS', 'points')}
+                        {sortableHeader('FGM', 'fgm')}
+                        {sortableHeader('FGA', 'fga')}
+                        {sortableHeader('3PM', 'threePm')}
+                        {sortableHeader('3PA', 'threePa')}
+                        {sortableHeader('FTM', 'ftm')}
+                        {sortableHeader('FTA', 'fta')}
+                        {sortableHeader('ORB', 'offensiveRebounds')}
+                        {sortableHeader('DRB', 'defensiveRebounds')}
+                        {sortableHeader('TRB', 'totalRebounds')}
+                        {sortableHeader('AST', 'assists')}
+                        {sortableHeader('STL', 'steals')}
+                        {sortableHeader('BLK', 'blocks')}
+                        {sortableHeader('TO', 'turnovers')}
+                        {sortableHeader('PF', 'personalFouls')}
+                        {sortableHeader('+/-', 'plusMinus')}
+                        {sortableHeader('eFG%', 'effectiveFieldGoalPercentage')}
+                        {sortableHeader('TS%', 'trueShootingPercentage')}
+                        {sortableHeader('EFF', 'efficiency')}
+                        {sortableHeader('Stocks', 'stocks')}
+                        {sortableHeader('Def plays', 'defensivePlays')}
+                        {sortableHeader('PTS/48', 'pointsPer48')}
+                        {sortableHeader('AST/48', 'assistsPer48')}
+                        {sortableHeader('BLK/48', 'blocksPer48')}
+                        {sortableHeader('STL/48', 'stealsPer48')}
+                        {sortableHeader('REB/48', 'reboundsPer48')}
                       </tr>
                     </thead>
                     <tbody>
