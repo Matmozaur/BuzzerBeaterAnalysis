@@ -254,6 +254,16 @@ table {
   min-width: 1280px;
 }
 
+.player-table {
+  min-width: 1720px;
+}
+
+.player-table th:first-child,
+.player-table td:first-child {
+  min-width: 250px;
+  white-space: nowrap;
+}
+
 thead th {
   font-size: 0.8rem;
   color: #bfdbfe;

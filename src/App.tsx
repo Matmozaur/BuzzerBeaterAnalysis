@@ -2,7 +2,12 @@ import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { ChangeEvent } from 'react'
 import { analyzeMatchInput } from './lib/analysis'
-import type { MatchAnalysis, PlayerBoxScore, TeamAnalysis } from './lib/types'
+import type {
+  MatchAnalysis,
+  PlayerBoxScore,
+  TeamAnalysis,
+  TeamSide,
+} from './lib/types'
 
 type Status = 'idle' | 'loading' | 'error' | 'success'
 type SortDirection = 'asc' | 'desc'
@@ -39,6 +44,11 @@ type PlayerSortKey =
 interface SortConfig {
   key: PlayerSortKey
   direction: SortDirection
+}
+
+const defaultSortConfig: SortConfig = {
+  key: 'minutes',
+  direction: 'desc',
 }
 
 function formatNumber(value: number, digits = 1) {
@@ -156,9 +166,9 @@ function App() {
   const [status, setStatus] = useState<Status>('idle')
   const [error, setError] = useState('')
   const [analysis, setAnalysis] = useState<MatchAnalysis | null>(null)
-  const [sortConfig, setSortConfig] = useState<SortConfig>({
-    key: 'minutes',
-    direction: 'desc',
+  const [sortConfigByTeam, setSortConfigByTeam] = useState<Record<TeamSide, SortConfig>>({
+    away: defaultSortConfig,
+    home: defaultSortConfig,
   })
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -202,47 +212,55 @@ function App() {
     () =>
       teams.map((team) => ({
         ...team,
-        players: sortPlayers(team, sortConfig),
+        players: sortPlayers(team, sortConfigByTeam[team.side] ?? defaultSortConfig),
       })),
-    [teams, sortConfig],
+    [teams, sortConfigByTeam],
   )
 
-  function toggleSort(nextKey: PlayerSortKey) {
-    setSortConfig((current) => ({
-      key: nextKey,
-      direction:
-        current.key === nextKey
-          ? current.direction === 'desc'
-            ? 'asc'
-            : 'desc'
-          : nextKey === 'name'
-            ? 'asc'
-            : 'desc',
-    }))
+  function toggleSort(teamSide: TeamSide, nextKey: PlayerSortKey) {
+    setSortConfigByTeam((current) => {
+      const teamSort = current[teamSide] ?? defaultSortConfig
+      return {
+        ...current,
+        [teamSide]: {
+          key: nextKey,
+          direction:
+            teamSort.key === nextKey
+              ? teamSort.direction === 'desc'
+                ? 'asc'
+                : 'desc'
+              : nextKey === 'name'
+                ? 'asc'
+                : 'desc',
+        },
+      }
+    })
   }
 
-  function sortIndicator(key: PlayerSortKey) {
-    if (sortConfig.key !== key) {
+  function sortIndicator(teamSide: TeamSide, key: PlayerSortKey) {
+    const teamSort = sortConfigByTeam[teamSide] ?? defaultSortConfig
+    if (teamSort.key !== key) {
       return ''
     }
 
-    return sortConfig.direction === 'asc' ? ' ↑' : ' ↓'
+    return teamSort.direction === 'asc' ? ' ↑' : ' ↓'
   }
 
-  function ariaSort(key: PlayerSortKey): 'ascending' | 'descending' | 'none' {
-    if (sortConfig.key !== key) {
+  function ariaSort(teamSide: TeamSide, key: PlayerSortKey): 'ascending' | 'descending' | 'none' {
+    const teamSort = sortConfigByTeam[teamSide] ?? defaultSortConfig
+    if (teamSort.key !== key) {
       return 'none'
     }
 
-    return sortConfig.direction === 'asc' ? 'ascending' : 'descending'
+    return teamSort.direction === 'asc' ? 'ascending' : 'descending'
   }
 
-  function sortableHeader(label: string, key: PlayerSortKey) {
+  function sortableHeader(label: string, key: PlayerSortKey, teamSide: TeamSide) {
     return (
-      <th className="sortable-header" aria-sort={ariaSort(key)}>
-        <button type="button" onClick={() => toggleSort(key)}>
+      <th className="sortable-header" aria-sort={ariaSort(teamSide, key)}>
+        <button type="button" onClick={() => toggleSort(teamSide, key)}>
           {label}
-          {sortIndicator(key)}
+          {sortIndicator(teamSide, key)}
         </button>
       </th>
     )
@@ -414,37 +432,37 @@ function App() {
                   </div>
                 </div>
                 <div className="table-wrapper">
-                  <table>
+                  <table className="player-table">
                     <thead>
                       <tr>
-                        {sortableHeader('Player', 'name')}
-                        {sortableHeader('MIN', 'minutes')}
-                        {sortableHeader('PTS', 'points')}
-                        {sortableHeader('FGM', 'fgm')}
-                        {sortableHeader('FGA', 'fga')}
-                        {sortableHeader('3PM', 'threePm')}
-                        {sortableHeader('3PA', 'threePa')}
-                        {sortableHeader('FTM', 'ftm')}
-                        {sortableHeader('FTA', 'fta')}
-                        {sortableHeader('ORB', 'offensiveRebounds')}
-                        {sortableHeader('DRB', 'defensiveRebounds')}
-                        {sortableHeader('TRB', 'totalRebounds')}
-                        {sortableHeader('AST', 'assists')}
-                        {sortableHeader('STL', 'steals')}
-                        {sortableHeader('BLK', 'blocks')}
-                        {sortableHeader('TO', 'turnovers')}
-                        {sortableHeader('PF', 'personalFouls')}
-                        {sortableHeader('+/-', 'plusMinus')}
-                        {sortableHeader('eFG%', 'effectiveFieldGoalPercentage')}
-                        {sortableHeader('TS%', 'trueShootingPercentage')}
-                        {sortableHeader('EFF', 'efficiency')}
-                        {sortableHeader('Stocks', 'stocks')}
-                        {sortableHeader('Def plays', 'defensivePlays')}
-                        {sortableHeader('PTS/48', 'pointsPer48')}
-                        {sortableHeader('AST/48', 'assistsPer48')}
-                        {sortableHeader('BLK/48', 'blocksPer48')}
-                        {sortableHeader('STL/48', 'stealsPer48')}
-                        {sortableHeader('REB/48', 'reboundsPer48')}
+                        {sortableHeader('Player', 'name', team.side)}
+                        {sortableHeader('MIN', 'minutes', team.side)}
+                        {sortableHeader('PTS', 'points', team.side)}
+                        {sortableHeader('FGM', 'fgm', team.side)}
+                        {sortableHeader('FGA', 'fga', team.side)}
+                        {sortableHeader('3PM', 'threePm', team.side)}
+                        {sortableHeader('3PA', 'threePa', team.side)}
+                        {sortableHeader('FTM', 'ftm', team.side)}
+                        {sortableHeader('FTA', 'fta', team.side)}
+                        {sortableHeader('ORB', 'offensiveRebounds', team.side)}
+                        {sortableHeader('DRB', 'defensiveRebounds', team.side)}
+                        {sortableHeader('TRB', 'totalRebounds', team.side)}
+                        {sortableHeader('AST', 'assists', team.side)}
+                        {sortableHeader('STL', 'steals', team.side)}
+                        {sortableHeader('BLK', 'blocks', team.side)}
+                        {sortableHeader('TO', 'turnovers', team.side)}
+                        {sortableHeader('PF', 'personalFouls', team.side)}
+                        {sortableHeader('+/-', 'plusMinus', team.side)}
+                        {sortableHeader('eFG%', 'effectiveFieldGoalPercentage', team.side)}
+                        {sortableHeader('TS%', 'trueShootingPercentage', team.side)}
+                        {sortableHeader('EFF', 'efficiency', team.side)}
+                        {sortableHeader('Stocks', 'stocks', team.side)}
+                        {sortableHeader('Def plays', 'defensivePlays', team.side)}
+                        {sortableHeader('PTS/48', 'pointsPer48', team.side)}
+                        {sortableHeader('AST/48', 'assistsPer48', team.side)}
+                        {sortableHeader('BLK/48', 'blocksPer48', team.side)}
+                        {sortableHeader('STL/48', 'stealsPer48', team.side)}
+                        {sortableHeader('REB/48', 'reboundsPer48', team.side)}
                       </tr>
                     </thead>
                     <tbody>
